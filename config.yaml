@@ -1,0 +1,40 @@
+broker:
+  host: 127.0.0.1
+  port: 9000
+  access_token: 123123
+messengers:
+  vk:
+    bots:
+      main:
+        id: 146605471
+        confirmation: 3d914c44
+        access_token: 
+        bucket: main
+  telegram:
+    bots:
+      main:
+        access_token: 
+        hook_url: <secret url>
+        bucket: main
+worker:
+  broker_url: http://127.0.0.1:9000
+  bucket: main
+  access_token: 123123
+  stores:
+    cache:
+      class: 'roboman.stores.kv.mongo.Store'
+      prefix: 'cache'
+      uri: 'mongodb://127.0.0.1:27017'
+      db: 's7'
+    kv:
+      class: 'roboman.stores.kv.mongo.Store'
+      prefix: 'kv'
+      uri: 'mongodb://127.0.0.1:27017'
+      db: 's7'
+    db:
+      class: 'roboman.stores.db.mongo.Store'
+      uri: 'mongodb://127.0.0.1:27017'
+      db: 's7'
+    yandex_rasp:
+      class: 'api.yandex_rasp.YandexRasp'
+      api_key: '<api key>'

@@ -1,0 +1,22 @@
+{
+  "version": "0.1.0",
+  "name": "s7-bot",
+  "description": "S7 Bot",
+  "yumDependencies": [
+    "python35u"
+  ],
+  "yumBuildDependencies": [
+    "python35u",
+    "python35u-devel",
+    "rpm-build",
+    "redhat-rpm-config"
+  ],
+  "excludeFiles": [
+    ".gitlab-ci.yml"
+  ],
+  "initScripts": [
+    "build/systemd/s7-bot-broker.service",
+    "build/systemd/s7-bot-worker.service"
+  ],
+  "virtualenv": "virtualenv --python=/usr/bin/python3.5"
+}

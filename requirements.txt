@@ -1,0 +1,7 @@
+#-e git+ssh://git@gitlab.team.ktsstudio.ru/kts-libs/roboman.git@c3c372c#egg=roboman
+git+https://github.com/ktsstudio/roboman.git@efaaebf#egg=roboman
+file2conf==0.1.2
+motor==1.1
+python-dateutil==2.6.0
+pymorphy2[fast]
+pymorphy2-dicts-ru

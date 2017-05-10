@@ -1,0 +1,11 @@
+before_script:
+    - git submodule update --init
+    - build_number=$(cat /tmp/number$CI_PROJECT_ID 2>/dev/null || echo 1)
+    - build_number=$(($build_number + 1))
+    - echo $build_number > /tmp/number$CI_PROJECT_ID;
+
+build:
+  script:
+    - ./rpmtools/python/build.sh --build=$build_number
+    - rsync /root/rpmbuild/RPMS/x86_64/s7-bot* rsync://********@********
+    - gitlab-bot --version=$(rpm -qp --queryformat %{VERSION}-%{RELEASE} /root/rpmbuild/RPMS/x86_64/s7-bot*)
