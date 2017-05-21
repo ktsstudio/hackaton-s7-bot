@@ -1,24 +1,27 @@
 broker:
-  host: 127.0.0.1
+  host: 0.0.0.0
   port: 9000
   access_token: fiPBVNSgar8eZZjT18UuXkYAIYStgt81gLV5WOAwJv0kRqEnfQIQ2z7AsE4y
+api:
+  host: 127.0.0.1
+  port: 9000
 messengers:
   vk:
     bots:
       main:
-        id:
-        confirmation:
-        access_token:
+        id: 146605471
+        confirmation: 3d914c44
+        access_token: 0269585812030c690ca9ff23f3732b18bf2f81793752e439802d963e5cb4e930b6ae9f0e4760f0c106e4f
         bucket: main
   telegram:
     bots:
       main:
-        access_token:
+        access_token: 359077676:AAEuz4AKNOG87PSEcBaERgdhOLhq9FI8E3Q
         hook_url: https://bot.team.ktsstudio.ru/main/hook.telegram
         bucket: main
 worker:
-  broker_url: http://127.0.0.1:9000
-  bucket: main
+  broker_url: https://chat-and-go.team.ktsstudio.ru
+  bucket: ozhegov
   access_token: fiPBVNSgar8eZZjT18UuXkYAIYStgt81gLV5WOAwJv0kRqEnfQIQ2z7AsE4y
   stores:
     cache:
@@ -36,5 +39,5 @@ worker:
       uri: 'mongodb://127.0.0.1:27017'
       db: 's7'
     yandex_rasp:
-      class: 'api.yandex_rasp.YandexRasp'
-      api_key: ''
+      class: 'stores.yandex_rasp.YandexRasp'
+      api_key: 'f5b75a0f-a40a-4fba-a736-5bc8fe6067b8'

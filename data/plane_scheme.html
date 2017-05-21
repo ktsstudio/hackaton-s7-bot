@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        body {
+            font-family: Verdana, sans-serif;
+        }
+
+        .sit-image {
+            width: 19px;
+        }
+
+        .plane {
+            width: 224px;
+            height: 825px;
+        }
+
+        .empty-pass {
+            width: 7px;
+        }
+
+        .sit-numbers {
+            position: absolute;
+            top: 210px;
+            left: 15px;
+        }
+
+        .sit-number {
+            height: 22px;
+            line-height: 22px;
+            font-size: 16px;
+            padding-top: 0;
+            padding-bottom: 0;
+            vertical-align: middle;
+            text-align: right;
+            width: 15px;
+        }
+
+        .sit-rows {
+            position: absolute;
+            top: 180px;
+            left: 44px;
+        }
+
+        .sit-row {
+            width: 19px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="plane">
+    <img src="{{ base_path }}/data/boeing_737-800_h.png" width="224" height="825">
+</div>
+<table style="position: absolute; top: 210px; left: 44px;">
+    <tbody>
+    {% for number, lets in places %}
+    <tr>
+        {% for let, engaged in lets %}
+            {% if engaged is None %}
+                <td><img src="{{ base_path }}/data/seat_sm_green_h.png" class="sit-image"></td>
+            {% else %}
+                 <td><img src="{{ base_path }}/data/seat_sm_grey_h.png" class="sit-image"></td>
+            {% end %}
+            {% if let == "C" %}
+                <td class="empty-pass"></td>
+            {% end %}
+        {% end %}
+    </tr>
+    {% end %}
+    </tbody>
+</table>
+<table class="sit-numbers">
+    <tbody>
+    {% for number, shit in places %}
+    <tr>
+        <td class="sit-number">{{ number }}</td>
+    </tr>
+    {% end %}
+    </tbody>
+</table>
+<table class="sit-rows">
+    <tbody>
+    <tr>
+        <td class="sit-row">A</td>
+        <td class="sit-row">B</td>
+        <td class="sit-row">C</td>
+        <td class="empty-pass"></td>
+        <td class="sit-row">D</td>
+        <td class="sit-row">E</td>
+        <td class="sit-row">F</td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 from roboman.exceptions import BotException
 from roboman.stores import BaseStore
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
@@ -47,6 +45,8 @@ class YandexRasp(BaseStore):
             'date': kwargs.get('date'),
             'page': 1,
         }
+        print(kwargs)
+        print(params)
 
         params.update(kwargs.get('extra', {}))
 

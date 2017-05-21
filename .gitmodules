@@ -1,0 +1,3 @@
+[submodule "rpmtools"]
+	path = rpmtools
+	url = git@gitlab.team.ktsstudio.ru:kts-libs/rpmtools.git

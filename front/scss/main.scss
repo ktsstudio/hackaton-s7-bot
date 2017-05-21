@@ -1,0 +1,62 @@
+@import 'vars';
+
+* {
+  margin: 0;
+  padding: 0;
+  font-family: "PT Sans", sans-serif;
+  font-size: 16px;
+}
+
+h2 {
+  font-size: 28px;
+}
+
+.root {
+}
+
+.button {
+  background-color: $button-color;
+  color: $button-text-color;
+  margin-top: $block-margin;
+}
+
+.ok {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background-image: url(s7-ok.png);
+  background-repeat: no-repeat;
+  background-size: contain;
+  width: 100px;
+  height: 100px;
+  margin-top: -50px;
+  margin-left: -50px;
+
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+
+  &.ok_shown {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  &__title {
+    white-space: nowrap;
+    position: absolute;
+    bottom: -40px;
+    transform: translateX(-50%);
+    left: 50%;
+    text-decoration: none;
+  }
+
+  &__button {
+    white-space: nowrap;
+    position: absolute;
+    bottom: -85px;
+    transform: translateX(-50%);
+    left: 50%;
+    text-decoration: none;
+  }
+}

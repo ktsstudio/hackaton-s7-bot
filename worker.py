@@ -1,12 +1,14 @@
 from tornado.ioloop import IOLoop
-from roboman.worker import Worker
-from bots.s7 import S7Bot
-from settings import options
+from instance import get_worker
+from tools.extractor import get_wv
 
 if __name__ == '__main__':
-    loop = IOLoop.instance()
+    get_wv()
 
-    worker = Worker(bot=S7Bot, **options.worker)
+    loop = IOLoop.instance()
+    worker = get_worker()
+    loop.run_sync(worker.store.search.connect)
     worker.start(loop=loop)
+    loop.run_sync(worker.store.search.disconnect)
 
     loop.start()

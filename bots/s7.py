@@ -1,13 +1,19 @@
+import random
 from datetime import datetime
-from dateutil.parser import parse
 
-from bots.subbot.buy import BuyBot
-from roboman.bot.bot import BaseBot
-from tornkts.utils import to_int
 from roboman.exceptions import BotException
+from tornkts.utils import to_int
+
+from base.bot import BaseBot
+from bots.subbot.buy import BuyBot
+from bots.subbot.registration import RegistrationBot
+from bots.subbot.search import SearchBot
 from tools import extractor
-from tools.extractor import flight_cost
-from tools.utils import readable_date, add_eleven_month
+from tools.extractor import QuestionType
+from settings import options
+
+
+# similarity = prepare_sim_func(FAQ, get_wv())
 
 
 class S7Bot(BaseBot):
@@ -22,6 +28,19 @@ class S7Bot(BaseBot):
             self.user = dict()
         self.user['state'] = state
 
+    def option_text(self, option):
+        if self.is_telegram:
+            return '/{}'.format(option)
+        if self.is_vk:
+            return '{}'.format(option)
+
+    def parse_option_text(self, option, default=0):
+        if self.is_telegram:
+            if option.startswith('/'):
+                return to_int(option[1:], default)
+        if self.is_vk:
+            return to_int(option, default)
+
     async def before_hook(self):
         self.user = await self.store.db.users.find_one({'external': self.msg.unique_key})
 
@@ -31,6 +50,17 @@ class S7Bot(BaseBot):
                 'last_use': to_int(datetime.now().timestamp()),
                 'state': self.state
             }
+
+        if not self.user.get('name') and not self.user.get('surname'):
+            if self.is_telegram:
+                msg_from = self.msg.extra.get('from')
+                self.user['name'] = msg_from.get('first_name')
+                self.user['surname'] = msg_from.get('last_name')
+            elif self.is_vk:
+                vk = await self.vk_user_get(self.msg.from_id)
+                if vk:
+                    self.user['name'] = vk.get('first_name')
+                    self.user['surname'] = vk.get('last_name')
 
     async def after_hook(self):
         await self.store.db.users.update_one(
@@ -45,103 +75,103 @@ class S7Bot(BaseBot):
             if flight:
                 self.user['flight'] = flight
                 self.set_state('buy')
-
         if self.state == 'buy':
             await self.run(BuyBot)
+            return
+        elif self.state == "registration":
+            await self.run(RegistrationBot)
+            return
+        elif self.state == 'faq':
+            questions = self.user.get('faq', {}).get('questions')
+
+            option = self.parse_option_text(self.msg.text, 0)
+            if option is not None:
+                if questions is not None and not (0 < option <= len(questions)):
+                    raise BotException('Введите число от 1 до {}'.format(len(questions)))
+                else:
+                    q_id = questions[option - 1]
+                    q = await self.store.search.get(id=q_id)
+
+                    await self.send(q['text'])
+                    return
+
+            self.user['faq'] = {}
+            self.set_state(None)
+            # return
+        # else:
+        is_common_phrases = await self.common_phrase()
+        await self.process(is_common_phrases)
+
+    async def process(self, is_common_phrases):
+        text = self.msg.text
+        question_type = extractor.detect_question(text)
+        if question_type == QuestionType.SEARCH:
+            return await self.process_search(is_common_phrases)
+        elif question_type == QuestionType.REGISTRATION:
+            return await self.process_registration(is_common_phrases)
+        elif text.startswith('faq') or question_type == QuestionType.FAQ:
+            self.msg.text = self.msg.text.replace('faq', '')
+            return await self.process_faq(is_common_phrases)
+        elif question_type == QuestionType.NONE:
+            # TODO: rethink
+            if is_common_phrases:
+                return
+            elif self.state is None:
+                await self.send('Вы можете начать покупку билета с фразы, '
+                                'например "Отправиться из Москвы в Казань."\n'
+                                'Либо просто задайте интересующий вас вопрос.')
         else:
-            is_common_phrases = await self.common_phrase()
-            await self.search(is_common_phrases)
+            raise Exception('unexpected question type')
 
-    async def search(self, is_common_phrases):
-        extract = extractor.search(self.msg.text)
+    async def process_search(self, is_common_phrases):
+        if options.debug:
+            await self.send('Попытка заказать билет')
+        await self.run(SearchBot, extra=dict(
+            is_common_phrases=is_common_phrases
+        ))
 
-        src = extract['src']
-        dst = extract['dst']
-        date = extract['date']
+    async def process_registration(self, is_common_phrases):
+        if options.debug:
+            await self.send('Попытка регистрации на рейс')
+        self.set_state("registration")
+        await self.run(RegistrationBot)
 
-        if datetime.now().date() > date.date():
-            raise BotException('В расписании отображаются только будущие рейсы')
+    async def process_faq(self, is_common_phrases):
+        # result = find_similar_faq(self.msg.text, FAQ, FAQ_DF, similarity)
+        intro = 'Вот список наиболее подходящих вопросов:\n'
 
-        if add_eleven_month() < date.date():
-            raise BotException('Расписание составлено только на 11 месяцев вперед от текущей даты')
+        result = await self.store.search.search(self.msg.text)
+        ids = []
+        response = []
+        for i, r in enumerate(result):
+            response.append('{}. {}'.format(self.option_text(i + 1), r['title']))
+            ids.append(r['id'])
+        response = '\n'.join(response)
 
-        if date is not None and not extract['now_auto'] and (src is None and dst is None):
-            if 'last_rasp_request' in self.user:
-                src = self.user['last_rasp_request'].get('src')
-                dst = self.user['last_rasp_request'].get('dst')
+        self.user['faq'] = {
+            'questions': ids,
+        }
+        self.set_state('faq')
 
-        if src and dst and date:
-            rasp_params = dict(
-                src=src, dst=dst,
-                date=date.strftime('%Y-%m-%d'),
-                extra=dict(transport_types='plane')
-            )
-            self.user['last_rasp_request'] = rasp_params
-            rasp = await self.store.yandex_rasp.fetch(**rasp_params)
+        outro = '\n\nЕсли вы не видите нужного вопроса, можете попробовать найти ответ на сайте https://www.s7.ru/info/faq/faq.dot'
 
-            results = dict()
-            for item in rasp.get('threads'):
-                try:
-                    departure = parse(item['departure'])
-                    arrival = parse(item['arrival'])
-                    if departure < datetime.now():
-                        continue
-
-                    attrs = {
-                        'departure': departure,
-                        'arrival': arrival,
-                        'id': item['thread']['number'].replace(' ', ''),
-                        'from': item['from']['title'],
-                        'to': item['to']['title']
-                    }
-
-                    route = '\n{0} — {1}'.format(attrs['from'], attrs['to'])
-
-                    if route not in results:
-                        results[route] = []
-
-                    results[route].append(attrs)
-                except KeyError:
-                    pass
-
-            if len(results) > 0:
-                response = 'Рейсы на {0}\n'.format(readable_date(date))
-                for route, items in results.items():
-                    response = response + '{0}:\n'.format(route)
-                    for item in items:
-                        cost = flight_cost(item)
-
-                        response += '{id} в {departure} за {cost} ₽\n'.format(
-                            id=item['id'],
-                            departure=item['departure'].strftime('%H:%M'),
-                            cost=cost,
-                        )
-
-                response += '\nДля заказа билета введите номер рейса'
-                await self.send(response.strip())
-            else:
-                await self.send('Не нашлось рейсов на {0}'.format(readable_date(date)))
-        else:
-            msg = ''
-            if not (is_common_phrases and src is None and dst is None):
-                msg = 'Мы не поняли {direction} нужно лететь. '
-            await self.send(
-                (msg + 'Напишите в свободной форме о вашем путешествии').format(
-                    direction='откуда' if src is None else 'куда'
-                )
-            )
+        await self.send(intro + response + outro)
 
     async def buy_detector(self):
         text = set(extractor.tokenize(self.msg.text))
 
-        if 'last_rasp_request' in self.user:
+        if self.user.get('last_rasp_request') and self.user['last_rasp_request'].get('src') is not None and self.user['last_rasp_request'].get('dst') is not None:
             last_rasp_request = self.user['last_rasp_request']
-            rasp = await self.store.yandex_rasp.fetch(**last_rasp_request)
-            for item in rasp.get('threads'):
-                number = item['thread']['number'].replace(' ', '').lower()
+            try:
+                rasp = await self.store.yandex_rasp.fetch(**last_rasp_request)
+            except:
+                self.user['last_rasp_request'] = None
+            else:
+                for item in rasp.get('threads'):
+                    number = item['thread']['number'].replace(' ', '').lower()
 
-                if number in text:
-                    return item
+                    if number in text:
+                        return item
 
         return False
 
@@ -150,10 +180,13 @@ class S7Bot(BaseBot):
 
         to_response = set()
         detect = {
-            'greetings': ['привет', 'приветик', 'хай', 'здравствуйте', 'здравствуй', 'здарова', 'hi', 'hello', 'bonjour']
+            'greetings': ['привет', 'приветик', 'хай', 'здравствуйте', 'здравствуй', 'здарова', 'hi', 'hello',
+                          'bonjour', 'start'],
+            'thankyou': ['спасибо', 'спс', 'спася', 'благодарить']
         }
         responses = {
             'greetings': 'Hello',
+            'thankyou': ['Всегда пожалуйста!', 'Всегда Ваш, S7.', 'Обращайтесь еще!', 'Всегда рады Вам помочь!']
         }
 
         for key, keywords in detect.items():
@@ -162,6 +195,7 @@ class S7Bot(BaseBot):
                     to_response.add(key)
                     break
 
+        message = None
         for item in to_response:
             message = responses.get(item)
             if not message:
@@ -170,14 +204,21 @@ class S7Bot(BaseBot):
             if item == 'greetings':
                 now = datetime.now()
                 if 0 <= now.hour < 4:
-                    message = 'Доброй ночи!'
+                    message = 'Доброй ночи'
                 elif 4 <= now.hour < 12:
                     message = 'Доброе утро'
                 elif 12 <= now.hour < 18:
                     message = 'Добрый день'
                 else:
                     message = 'Добрый вечер'
+                message += '. Задайте свой вопрос или напишите, куда хотите полететь.'
+                break
 
+            if item == 'thankyou':
+                message = random.choice(message)
+                break
+
+        if message:
             await self.send(message)
 
         return len(to_response) > 0

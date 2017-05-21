@@ -14,9 +14,15 @@
   "excludeFiles": [
     ".gitlab-ci.yml"
   ],
+  "gruntCwd": "front",
+  "buildCmds": [
+    "cd front; yarn build; cp -r public ../; cd ..; rm -rf front"
+  ],
   "initScripts": [
+    "build/systemd/s7-bot-api.service",
     "build/systemd/s7-bot-broker.service",
-    "build/systemd/s7-bot-worker.service"
+    "build/systemd/s7-bot-worker.service",
+    "build/systemd/s7-bot-notifications.service"
   ],
   "virtualenv": "virtualenv --python=/usr/bin/python3.5"
 }

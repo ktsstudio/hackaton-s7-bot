@@ -1,3 +1,7 @@
 env
 *.pyc
 .idea
+config.yaml
+front/node_modules
+front/public
+data/large

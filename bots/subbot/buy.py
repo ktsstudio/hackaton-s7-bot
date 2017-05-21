@@ -1,12 +1,11 @@
-import uuid
-from collections import OrderedDict
-from datetime import datetime
+import datetime
 
-from dateutil.parser import parse
-from tornkts.utils import to_int
+from tornado import gen
+from tornado.httputil import url_concat
+from settings import options
 from roboman.bot.bot import BaseBot
-from tools import extractor
-from tools.extractor import morph, tokenize, flight_cost
+from tools.extractor import flight_cost
+import uuid
 
 
 class BuyBot(BaseBot):
@@ -18,6 +17,13 @@ class BuyBot(BaseBot):
             return 'Да'
 
     @property
+    def all_message(self):
+        if self.is_telegram:
+            return '/all'
+        if self.is_vk:
+            return 'Все'
+
+    @property
     def cancel_message(self):
         if self.is_telegram:
             return '/cancel'
@@ -25,7 +31,9 @@ class BuyBot(BaseBot):
             return 'Отмена'
 
     async def before_hook(self):
-        self.cv = self.parent.user.get('cv') or {}
+        self.cv = self.parent.user.get('cv') or {
+            'flight': self.parent.user.get('flight'),
+        }
 
         if 'attempt' not in self.cv:
             self.cv['attempt'] = 0
@@ -40,143 +48,84 @@ class BuyBot(BaseBot):
             self.reset()
             await self.send('Вы отменили покупку')
             return
+        elif self.match_command(self.all_message):
+            passengers = self.cv.get('passengers', [])
+            msg = []
+            for i in range(len(passengers)):
+                msg.append('{i}. {name} {surname}'.format(i=i + 1, **passengers[i]))
 
-        if self.match_command(self.confirm_message) and len(self.cv_skipped_fields) == 0:
+            if len(msg) > 0:
+                await self.send('\n'.join(msg))
+            else:
+                await self.send('Пока еще никто не зарегистрировался')
+            return
+        elif self.match_command(self.confirm_message):
             await self.payment_and_approve()
             return
+        elif self.cv['attempt'] == 0:
+            url = options.api['order_form_url']
+            self.cv['buy_id'] = uuid.uuid4().hex
 
-        if self.cv['attempt'] == 0:
+            url = url_concat(url, {'buy_id': self.cv['buy_id']})
+
             await self.send(
-                """
-Введите свои данные (ФИО, дату рождения, паспортные данные).
-Дату рождения нужно в вводить в формате день.месяц.год (например 01.04.1994), а паспорт 10 цифр подряд
-Для отмены покупки напишите {0} 
-                """.format(self.cancel_message)
+                'Заполните данные по ссылке: {url}\n\nЭту ссылку можно отправить всем, с кем летите\n\n'
+                'Для отмены покупки напишите {cancel}'.format(
+                    url=url,
+                    cancel=self.cancel_message
+                )
             )
-        elif self.cv['attempt'] == 1:
-            self.cv.update(extractor.cv(self.msg.text))
-            await self.send('Ваши данные\n' + self.cv_as_str())
-
-            if len(self.cv_skipped_fields) == 0:
-                await self.send(
-                    """
-Проверьте правильность заполнения анкеты, если все хорошо, напишите {0}
-Для редактирования отправьте название поля и новое значение. Например: Фамилия Иванов 
-                    """.format(self.confirm_message)
-                )
-            else:
-                await self.send(
-                    """
-Не все поля удалось заполнить, дозаполните анкету.
-Просто отправляйте название поля и новое значение. Например: Фамилия Иванов
-                    """
-                )
         else:
-            errors = []
-            lines = self.msg.text.split('\n')
-            for line in lines:
-                line = line.strip()
-                for title, key in self.cv_fields(reverse=True).items():
-                    if line.lower().startswith(title.lower()):
-                        line = line[len(title) + 1:].strip()
-                        error, line = self.validate_field(key, line)
-
-                        if not error:
-                            self.cv[key] = line
-                        else:
-                            errors.append(error)
-
-            if len(errors) > 0:
-                await self.send('\n'.join(errors))
-            await self.send('Ваши данные\n' + self.cv_as_str())
-            if len(self.cv_skipped_fields) == 0:
-                await self.send(
-                    """
-Проверьте правильность заполнения анкеты, если все хорошо, напишите {0} 
-                    """.format(self.confirm_message)
+            await self.send(
+                'Для просмотра всех пассажиров напишите {all}\n'
+                'Для заказа билетов напишите {confirm}\n'
+                'Для отмены покупки напишите {cancel}'.format(
+                    all=self.all_message,
+                    confirm=self.confirm_message,
+                    cancel=self.cancel_message
                 )
-
-    @property
-    def cv_skipped_fields(self):
-        result = []
-        for key in self.cv_fields():
-            if not self.cv.get(key):
-                result.append(key)
-        return result
-
-    def cv_fields(self, reverse=False):
-        fields = OrderedDict()
-        fields['surname'] = 'Фамилия'
-        fields['name'] = 'Имя'
-        fields['patronymic'] = 'Отчество'
-        fields['sex'] = 'Пол'
-        fields['birthday'] = 'Дата рождения'
-        fields['passport'] = 'Паспорт'
-
-        if reverse:
-            reverse_fields = OrderedDict()
-            for key, value in fields.items():
-                reverse_fields[value] = key
-            fields = reverse_fields
-
-        return fields
-
-    def cv_as_str(self):
-        result = []
-
-        for key in self.cv_fields():
-            value = self.cv.get(key)
-            if key == 'sex':
-                if value == 'm':
-                    value = 'мужской'
-                elif value == 'f':
-                    value = 'женский'
-
-            result.append('{0}: {1}'.format(self.cv_fields()[key], value if value else ''))
-
-        return '\n'.join(result).strip()
-
-    def validate_field(self, key, value):
-        error = False
-        if key == 'passport':
-            if len(value) != 10 or to_int(value) is None:
-                error = 'Номер паспорта должен состоять из 10 цифр'
-        elif key == 'sex':
-            value = {
-                'мужской': 'm',
-                'женский': 'f'
-            }.get(value.lower())
-
-            if not value:
-                error = 'Введите корректное значение пола (мужской или женский)'
-        elif key == 'birthday':
-            try:
-                parse(value, dayfirst=True)
-            except:
-                error = 'Дата рождения имеет неверный формат'
-
-        return error, value
+            )
 
     async def payment_and_approve(self):
-        flight = self.parent.user.get('flight')
+        flight = self.cv.get('flight')
         if flight:
-            cost = flight_cost(flight)
+            price = flight_cost(flight)
         else:
-            cost = 0
+            price = 0
+
+        passengers = self.cv.get('passengers', [])
+        count = len(passengers)
+        cost = price * count
 
         await self.send(
-            """
-К демо-оплате {cost} ₽
-Перейдите в демо-платежную систему по демо-ссылке: https://www.s7.ru/?{hash}
-            """.format(cost=cost, hash=uuid.uuid4().hex)
+            'К демо-оплате {price} x {count} = {cost} ₽\n'
+            'Перейдите в демо-платежную систему по демо-ссылке: https://www.s7.ru/?{hash}'.format(
+                price=price,
+                cost=cost,
+                count=count,
+                hash=uuid.uuid4().hex
+            )
         )
 
         self.cv['flight'] = flight
+        self.cv['user_id'] = self.parent.user['_id']
+        self.cv['registered'] = False
         await self.store.db.reserving.insert_one(self.cv)
 
+        await gen.sleep(5)
+
         await self.send('Оплата произведена\nСчастливого пути!')
+
+        date = datetime.datetime.strptime(self.cv['flight']['departure'], "%Y-%m-%d %H:%M:%S")
+
+        if date <= datetime.datetime.now() + datetime.timedelta(hours=24):
+            await self.send('Также Вы можете зарегистрироваться на рейс в любой момент,'
+                            ' для этого введите "Регистрация".')
+        else:
+            await self.send('Электронная регистрация на рейс будет доступна за 24 часа до вылета.')
         self.reset()
 
     def reset(self):
         self.cv = None
         self.parent.set_state(None)
+        self.parent.user['last_rasp_request'] = None

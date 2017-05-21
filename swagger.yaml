@@ -1,0 +1,55 @@
+swagger: '2.0'
+
+info:
+  version: "0.1.0"
+  title: BankEx Backend Public API
+host: 127.0.0.1:8090
+schemes:
+ - http
+ - https
+produces:
+  - application/json
+paths:
+  /buy.info:
+    get:
+      description: Информация о рейсе, на который заказывается билет
+      parameters:
+        -
+          name: buy_id
+          in: query
+          description: id заказа
+          required: true
+          type: string
+      responses:
+        200:
+          description: Successful response
+          schema:
+            properties:
+              data.flight:
+                type: object
+                description: Словарь с рейсом
+        400:
+          description: Не переданы аргументы
+        default:
+          description: Ошибка при выполнении метода
+  /buy.addPassenger:
+    post:
+      description: Добавить пассажиров
+      parameters:
+        - name: buy_id
+          in: body
+          description: id заказа
+          required: true
+          type: string
+        - name: passengers
+          in: body
+          required: true
+          type: object
+          description: массив объектов с данными о пассажирах
+      responses:
+        200:
+          description: Successful response
+        400:
+          description: Не переданы аргументы
+        default:
+          description: Ошибка при выполнении метода

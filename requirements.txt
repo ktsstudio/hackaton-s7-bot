@@ -1,7 +1,18 @@
-#-e git+ssh://git@gitlab.team.ktsstudio.ru/kts-libs/roboman.git@c3c372c#egg=roboman
-git+https://github.com/ktsstudio/roboman.git@efaaebf#egg=roboman
+#-e git+ssh://git@gitlab.team.ktsstudio.ru/kts-libs/roboman.git@9e432b5b#egg=roboman
+git+https://github.com/ktsstudio/roboman.git@9e432b5b#egg=roboman
+git+https://github.com/grigory51/imgkit.git#egg=imgkit
 file2conf==0.1.2
 motor==1.1
 python-dateutil==2.6.0
 pymorphy2[fast]
 pymorphy2-dicts-ru
+numpy==1.12.1
+gensim==2.1.0
+editdistance
+bs4==0.0.1
+nltk==3.2.4
+pandas==0.20.1
+pyemd==0.4.3
+tornado_mysql
+lxml==3.7.3
+dateutils==0.6.6

@@ -1,26 +1,38 @@
+debug: true
 broker:
-  host: 127.0.0.1
+  host: 0.0.0.0
   port: 9000
-  access_token: 123123
+  access_token: fiPBVNSgar8eZZjT18UuXkYAIYStgt81gLV5WOAwJv0kRqEnfQIQ2z7AsE4y
+
+api:
+  host: 127.0.0.1
+  port: 8090
+  order_form_url: 'http://127.0.0.1:8080/'
+
+worker:
+  broker_url: https://chat-and-go.team.ktsstudio.ru
+  bucket: ozhegov
+  access_token: fiPBVNSgar8eZZjT18UuXkYAIYStgt81gLV5WOAwJv0kRqEnfQIQ2z7AsE4y
+
+#bot:
+#  api:
+#    tg: http://192.168.122.1:81
+#    vk: http://192.168.122.1:82
+
 messengers:
   vk:
     bots:
-      main:
-        id: 146605471
-        confirmation: 3d914c44
-        access_token: 
-        bucket: main
+      ozhegov:
+        id: 147307414
+        confirmation: 50f8a5c2
+        access_token: eca88ac75942c498076ac5647611652a026375a0f66351381bb61acee231c474e5d09b543871ee6f72618
   telegram:
     bots:
-      main:
-        access_token: 
-        hook_url: <secret url>
-        bucket: main
-worker:
-  broker_url: http://127.0.0.1:9000
-  bucket: main
-  access_token: 123123
-  stores:
+      ozhegov:
+        access_token: 367297946:AAGgY6fbt-ih4V6-VVQ5pJACP4QDfHXWes8
+        hook_url: https://bot.team.ktsstudio.ru/main/hook.telegram
+
+stores:
     cache:
       class: 'roboman.stores.kv.mongo.Store'
       prefix: 'cache'
@@ -35,6 +47,10 @@ worker:
       class: 'roboman.stores.db.mongo.Store'
       uri: 'mongodb://127.0.0.1:27017'
       db: 's7'
+    search:
+      class: 'stores.search.SearchStore'
+      host: 127.0.0.1
+      port: 3313
     yandex_rasp:
-      class: 'api.yandex_rasp.YandexRasp'
-      api_key: '<api key>'
+      class: 'stores.yandex_rasp.YandexRasp'
+      api_key: 'f5b75a0f-a40a-4fba-a736-5bc8fe6067b8'

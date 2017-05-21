@@ -19,6 +19,16 @@ define('messengers', type=dict, default={
     'telegram': {}
 })
 
+define('api', type=dict, default={
+    'host': '127.0.0.1',
+    'port': 8090,
+    'order_form_url': 'http://127.0.0.1:8080/',
+})
+
+define('bot', type=dict, default={
+    'api': {}
+})
+
 CONF = os.getenv('CONF', '/etc/s7-bot/s7-bot.yaml')
 if os.path.exists(CONF):
     options.read_config(CONF)
